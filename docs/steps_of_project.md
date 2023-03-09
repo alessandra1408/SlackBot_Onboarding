@@ -1,4 +1,4 @@
-# Steps os Project to make a slackbot to onboarding SEBRAE-Sprintf
+# Steps os Project to make a slackbot to onboarding SEBRAE-SP
 
 ## Step 01
 
