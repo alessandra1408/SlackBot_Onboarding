@@ -3,69 +3,100 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
 	"log"
 	"os"
-	"path/filepath"
-	"strconv"
-	"time"
+	"strings"
 
 	"github.com/joho/godotenv"
-	"github.com/sendgrid/sendgrid-go"
-	"github.com/sendgrid/sendgrid-go/helpers/mail"
 	"github.com/shomali11/slacker"
+	"github.com/slack-go/slack"
 )
 
-type header struct {
-	from    string
-	to      []string
-	subject string
-}
-
-type Message struct {
-	header      *header
-	body        string
-	attachments []*file
-}
-
-type file struct {
+type Person struct {
+	ID       string
 	Name     string
-	Header   map[string][]string
-	CopyFunc func(w io.Writer) error
+	Email    string
+	Password string
 }
 
-type FileSetting func(*file)
+var env = ".env"
 
 func main() {
-	err := godotenv.Load("/home/alessandra-goncalves/Documents/estudos/Go/SlackBot_Onboarding/.env")
+	err := sendMessageToUser()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Error sending message to user. Err: %v", err)
+	}
+}
+
+// auth function returns the required variables for the program
+func auth() (botToken, appToken string, bot *slacker.Slacker, api *slack.Client, err error) {
+	err = godotenv.Load(env)
+	fmt.Println(err)
+	if err != nil {
+		return "", "", nil, nil, err
 	}
 
-	botToken := os.Getenv("SLACK_BOT_TOKEN")
-	appToken := os.Getenv("SLACK_APP_TOKEN")
-	gmailAccount := os.Getenv("GMAIL_ACCOUNT")
-	gmailAccountName := os.Getenv("GMAIL_ACCOUNT_NAME")
-	gmailPassword := os.Getenv("GMAIL_PASSWORD")
-	gmailRecipient := os.Getenv("GMAIL_RECIPIENT")
-	gmailRecipientName := os.Getenv("GMAIL_RECIPIENT_NAME")
+	botToken = os.Getenv("SLACK_BOT_TOKEN")
+	if botToken == "" {
+		return "", "", nil, nil, fmt.Errorf("SLACK_BOT_TOKEN environment variable is not set")
+	}
+	appToken = os.Getenv("SLACK_APP_TOKEN")
+	if appToken == "" {
+		return "", "", nil, nil, fmt.Errorf("SLACK_APP_TOKEN environment variable is not set")
+	}
 
-	bot := slacker.NewClient(botToken, appToken)
+	bot = slacker.NewClient(botToken, appToken)
+	api = slack.New(botToken)
 
-	bot.Command("my yob is <year>", &slacker.CommandDefinition{
-		Description: "yob calcutator",
-		Examples:    []string{"my yob is 2023"},
+	return botToken, appToken, bot, api, nil
+}
+
+// config function returns the person's password from the .env file
+func config() Person {
+	err := godotenv.Load(env)
+	if err != nil {
+		log.Fatalf("Error loading .env file. Err: %s\n", err)
+	}
+
+	var person Person
+	person.Password = os.Getenv("GMAIL_PASSWORD")
+
+	return person
+}
+
+// sendMessageToUser function sends an onboarding message to the user
+func sendMessageToUser() error {
+	_, _, bot, api, err := auth()
+	if err != nil {
+		return err
+	}
+
+	bot.Command("Enviar mensagem de Onboading para <email>", &slacker.CommandDefinition{
+		Description: "Send message of onboarding to new coworkers",
+		Examples:    []string{"Fazer onboarding da @aleh"},
 		Handler: func(botCtx slacker.BotContext, request slacker.Request, response slacker.ResponseWriter) {
-			year := request.Param("year")
-			yob, err := strconv.Atoi(year)
+			personEmail := strings.TrimPrefix(strings.TrimSuffix(request.StringParam("email", "null"), ">"), "<mailto:")
+			personName, personID, err := getUserInfo(api, personEmail)
 			if err != nil {
-				println("error: ", err)
+				log.Printf("Some error occured in getUserInfo function. Err %s\n", err)
+				return
 			}
-			age := time.Now().Year() - yob
-			r := fmt.Sprintf("age is %d", age)
-			sendEmail(gmailAccountName, gmailAccount, gmailPassword, gmailRecipientName, gmailRecipient)
-			response.Reply(r)
 
+			_, _, err = api.PostMessage(
+				personID,
+				slack.MsgOptionText("*** Mensagem de onboarding ***", false),
+			)
+			if err != nil {
+				log.Printf("Some error occured in postMessage to user. Err %s", err)
+				return
+			}
+
+			str := fmt.Sprintf("Mensagem de onboarding enviada para %v!", personName)
+			err = response.Reply(str)
+			if err != nil {
+				log.Printf("Some error occured in sendMessageToUser Function. Err %s", err)
+				return
+			}
 		},
 	})
 
@@ -75,72 +106,20 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	return err
 }
 
-func (m *Message) appendFile(list []*file, name string, settings []FileSetting) []*file {
-	f := &file{
-		Name:   filepath.Base(name),
-		Header: make(map[string][]string),
-		CopyFunc: func(w io.Writer) error {
-			h, err := os.Open(name)
-			if err != nil {
-				return err
-			}
-			if _, err := io.Copy(w, h); err != nil {
-				h.Close()
-				return err
-			}
-			return h.Close()
-		},
-	}
-
-	for _, s := range settings {
-		s(f)
-	}
-
-	if list == nil {
-		return []*file{f}
-	}
-
-	return append(list, f)
-}
-
-func (m *Message) Attach(filename string, settings ...FileSetting) {
-	m.attachments = m.appendFile(m.attachments, filename, settings)
-}
-
-func sendEmail(gmailAccountName, gmailAccount, gmailPassword, gmailRecipientName, gmailRecipient string) {
-	fmt.Println("Gmail Account: ", gmailAccount)
-	fmt.Println("Gmail Account Name: ", gmailAccountName)
-	fmt.Println("Gmail Password: ", gmailPassword)
-
-	fmt.Println("Gmail Recipient: ", gmailRecipient)
-	fmt.Println("Gmail Recipient Name: ", gmailRecipientName)
-
-	// Initialise the required mail message variables
-	from := mail.NewEmail(gmailAccountName, gmailAccount)
-	subject := "Let's Send an Email With Golang and SendGrid"
-	to := mail.NewEmail(gmailRecipientName, gmailRecipient)
-	plainTextContent := "Here is your AMAZING email!"
-	htmlContent := "Here is your <strong>AMAZING</strong> email!"
-	message := mail.NewSingleEmail(from, subject, to, plainTextContent, htmlContent)
-
-	// Attempt to send the email
-	client := sendgrid.NewSendClient(os.Getenv("SENDGRID_API_KEY"))
-	response, err := client.Send(message)
+// getUserInfo function returns the person's name and ID based on the email address
+func getUserInfo(api *slack.Client, personEmail string) (personName, personID string, err error) {
+	err = godotenv.Load(env)
 	if err != nil {
-		fmt.Println("Unable to send your email")
-		log.Fatal(err)
+		return "", "", err
 	}
-
-	// Check if it was sent
-	statusCode := response.StatusCode
-	if statusCode == 200 || statusCode == 201 || statusCode == 202 {
-		fmt.Println("Email sent!")
-	}
-
+	user, err := api.GetUserByEmail(personEmail)
 	if err != nil {
-		log.Panicf("Some error occurred with send email. Err %s", err)
+		log.Printf("Some error occured in GetUserInfo function. Err %s\n", err)
 	}
 
+	return user.Profile.RealName, user.ID, err
 }

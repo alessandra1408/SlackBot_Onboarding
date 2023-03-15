@@ -22,4 +22,5 @@
 - Options:
   - [Gomail](https://pkg.go.dev/gopkg.in/gomail.v2) -> It will not be used because neoway's google account does not have the required app password
   - [turnMail]()
-  - [SendGrid](https://docs.sendgrid.com/for-developers/sending-email/quickstart-go)
+  - [Chilkat](https://www.example-code.com/golang/smtp_noAuthentication.asp) -> They unlocked 30 days free but we need to pay after
+  - [SendGrid](https://docs.sendgrid.com/for-developers/sending-email/quickstart-go) -> Needs to pass the password of email before, so it's no security and functional
