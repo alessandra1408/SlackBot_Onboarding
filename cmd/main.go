@@ -19,7 +19,7 @@ type Person struct {
 	Password string
 }
 
-var env = ".env"
+var env = "/home/alessandra-goncalves/Documents/estudos/Go/SlackBot_Onboarding/.env"
 
 func main() {
 	err := sendMessageToUser()
@@ -71,20 +71,33 @@ func sendMessageToUser() error {
 		return err
 	}
 
-	bot.Command("Enviar mensagem de Onboading para <email>", &slacker.CommandDefinition{
+	bot.Command("Mensagem <email>", &slacker.CommandDefinition{
 		Description: "Send message of onboarding to new coworkers",
 		Examples:    []string{"Fazer onboarding da @aleh"},
 		Handler: func(botCtx slacker.BotContext, request slacker.Request, response slacker.ResponseWriter) {
-			personEmail := strings.TrimPrefix(strings.TrimSuffix(request.StringParam("email", "null"), ">"), "<mailto:")
-			personName, personID, err := getUserInfo(api, personEmail)
+			personEmail := request.StringParam("email", "null")
+			personEmail = strings.ReplaceAll(personEmail, "<mailto:", "")
+			personEmail = strings.ReplaceAll(personEmail, ">", "")
+			formatedEmail := strings.Split(personEmail, "|")
+			fmt.Println("personEmail: ", formatedEmail[0])
+			personName, personID, err := getUserInfo(api, formatedEmail[0])
 			if err != nil {
 				log.Printf("Some error occured in getUserInfo function. Err %s\n", err)
 				return
 			}
 
+			mensagemOnboarding := fmt.Sprintf(`Olá %s, agora você faz parte do squad Sebrae :slightly_smiling_face:.
+Para o seu processo de onboarding, temos diversos materiais de gestão de conhecimento e apoio no confluence. É muito importante que você entre nesse espaço (também é onde armazenamos as nossas documentações).
+Já irei te passar alguns links úteis para o seu dia a dia (alguns desses você provavelmente não tem acesso, mas eles já estão sendo solicitados):
+			1. %v (%v)
+			2. %v (%v)
+			3. %v (%v e %v)
+			4. %v (%v)
+			5. %v (%v)`, personName, "Confluence SEBRAE", "https://tinyurl.com/confluencesebrae", "Bucket", "https://tinyurl.com/bucketSEB", "GCP de QA e PROD", "https://tinyurl.com/GCPqaSEB", "https://tinyurl.com/GCPsebPROD", "Projeto de Service Ops (para acessar o datalake SEBRAE)", "https://tinyurl.com/ProjServOps", "Épico central do Squad no Jira", "https://tinyurl.com/jiraSEB")
+
 			_, _, err = api.PostMessage(
 				personID,
-				slack.MsgOptionText("*** Mensagem de onboarding ***", false),
+				slack.MsgOptionText(mensagemOnboarding, false),
 			)
 			if err != nil {
 				log.Printf("Some error occured in postMessage to user. Err %s", err)

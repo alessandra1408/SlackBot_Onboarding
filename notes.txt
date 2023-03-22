@@ -1,0 +1,2 @@
+the SLACK_APP_TOKEN is unique for each user. Maybe wee will need to create a user to sebrae-sp
+the JIRA_API_TOKEN is unique for each user. Maybe wee will need to create a user to sebrae-sp
