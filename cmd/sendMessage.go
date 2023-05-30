@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	envVarPath = "/home/alessandra-goncalves/Documents/estudos/Go/SlackBot_Onboarding/.env"
+	envVarPath = "/home/alessandra-goncalves/Documents/neoway/key-results/SlackBot/.env"
 )
 
 var (
