@@ -1,0 +1,91 @@
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+
+	"github.com/slack-go/slack"
+)
+
+func main() {
+	api := slack.New("xoxb-4916220229541-5024870641430-07AqJZjE91Np38s51ZgDY27T")
+
+	payloadJSON := `{
+		"type": "modal",
+		"title": {
+			"type": "plain_text",
+			"text": "My App",
+			"emoji": true
+		},
+		"submit": {
+			"type": "plain_text",
+			"text": "Submit",
+			"emoji": true
+		},
+		"close": {
+			"type": "plain_text",
+			"text": "Cancel",
+			"emoji": true
+		},
+		"blocks": [
+			{
+				"type": "input",
+				"block_id": "input1",
+				"element": {
+					"type": "plain_text_input",
+					"action_id": "sl_input",
+					"placeholder": {
+						"type": "plain_text",
+						"text": "Placeholder text for single-line input"
+					}
+				},
+				"label": {
+					"type": "plain_text",
+					"text": "Label"
+				},
+				"hint": {
+					"type": "plain_text",
+					"text": "Hint text"
+				}
+			},
+			{
+				"type": "input",
+				"block_id": "input2",
+				"element": {
+					"type": "plain_text_input",
+					"action_id": "ml_input",
+					"multiline": true,
+					"placeholder": {
+						"type": "plain_text",
+						"text": "Placeholder text for multi-line input"
+					}
+				},
+				"label": {
+					"type": "plain_text",
+					"text": "Label"
+				},
+				"hint": {
+					"type": "plain_text",
+					"text": "Hint text"
+				}
+			}
+		]
+	}`
+
+	// Fazer a conversão do JSON para a estrutura de dados do Slack
+	var payload slack.ModalViewRequest
+	err := json.Unmarshal([]byte(payloadJSON), &payload)
+	if err != nil {
+		fmt.Printf("Error parsing payload JSON: %s\n", err.Error())
+		return
+	}
+
+	// Abrir o modal usando o método OpenView
+	_, err = api.OpenView("C04TQQQ63MW", payload)
+	if err != nil {
+		fmt.Printf("Error opening modal: %s\n", err.Error())
+		return
+	}
+
+	fmt.Println("Modal opened successfully")
+}
