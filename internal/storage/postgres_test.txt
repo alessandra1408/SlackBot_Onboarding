@@ -1,0 +1,143 @@
+// package storage_test
+
+// import (
+// 	"fmt"
+// 	"os"
+// 	"testing"
+
+// 	"github.com/stretchr/testify/assert"
+// 	"gitlab.neoway.com.br/sebrae-sp-ddm-datacapture/internal/infrastructure/storage/cloudsql"
+// )
+
+// var (
+// 	postgresHost     string
+// 	postgresPort     string
+// 	postgresDatabase string
+// 	postgresUser     string
+// 	postgresScrt     string
+// 	postgresURL      string
+// 	version          string
+// 	logger           *nlog.NLogger
+// )
+
+// func init() {
+// 	_, ok := os.LookupEnv("POSTGRES_URL")
+// 	if !ok {
+// 		postgresHost = "localhost"
+// 		postgresPort = "5439"
+// 		postgresDatabase = "data_capture_db"
+// 		postgresUser = "postgres"
+// 		postgresScrt = "admin"
+// 		postgresURL = fmt.Sprintf("host=%s port=%s dbname=%s user=%s password=%s sslmode=disable", postgresHost, postgresPort, postgresDatabase, postgresUser, postgresScrt)
+// 	} else {
+// 		postgresURL = os.Getenv("POSTGRES_URL")
+// 	}
+// 	logger = nlog.NewLogger("sebrae-ddm-tests", version, nlog.LevelDebug)
+// }
+
+// func TestSebraePostgres_Get_Success(t *testing.T) {
+// 	db, err := cloudsql.NewConnection(postgresURL, logger)
+// 	assert.NoError(t, err)
+// 	assert.NotNil(t, db)
+
+// 	sebraePostgresStorages := NewSebraePostgresStorage(db, logger)
+// 	assert.NotNil(t, sebraePostgresStorages)
+
+// 	defer func() {
+// 		err := sebraePostgresStorages.Close()
+// 		assert.NoError(t, err)
+// 	}()
+
+// 	query := "select 1 project_id, 'Teste' topic_id, 'Teste' data_extension_name, 'Teste' external_keys, " +
+// 		"1 type_query, 'Teste' parent_query, 'Teste' queries, true status, date('03/02/2022 13:00:00') updated_at "
+// 	rows, err := sebraePostgresStorages.Queryx(query)
+// 	assert.NoError(t, err)
+// 	assert.NotNil(t, rows)
+
+// 	columns, err := rows.Columns()
+// 	assert.NoError(t, err)
+// 	expectedColumns := []string{"project_id", "topic_id", "data_extension_name", "external_keys",
+// 		"type_query", "parent_query", "queries", "status", "updated_at"}
+// 	assert.Equal(t, expectedColumns, columns)
+// }
+
+// func TestSebraePostgres_Get_Invalid_Connection(t *testing.T) {
+// 	db, err := cloudsql.NewConnection(fmt.Sprintf("host=%s port=%s dbname=%s user=%s password=%s sslmode=disable",
+// 		postgresHost, "5555", postgresDatabase, postgresUser, postgresScrt), logger)
+// 	assert.Error(t, err)
+// 	assert.Nil(t, db)
+// 	assert.NotNil(t, err)
+// }
+
+// func TestSebraePostgres_Get_Invalid_Table(t *testing.T) {
+// 	db, err := cloudsql.NewConnection(postgresURL, logger)
+// 	assert.NoError(t, err)
+// 	assert.NotNil(t, db)
+
+// 	sebraePostgresStorages := NewSebraePostgresStorage(db, logger)
+// 	assert.NotNil(t, sebraePostgresStorages)
+
+// 	defer func() {
+// 		cErr := sebraePostgresStorages.Close()
+// 		assert.NoError(t, cErr)
+// 	}()
+
+// 	query := "select * from sandbox.fake_datacapture_base_queries"
+// 	rows, qErr := sebraePostgresStorages.Queryx(query)
+// 	assert.Error(t, qErr)
+// 	assert.Nil(t, rows)
+// }
+
+// func TestSebraePostgres_Exec_Success(t *testing.T) {
+// 	db, err := cloudsql.NewConnection(postgresURL, logger)
+// 	assert.NoError(t, err)
+// 	assert.NotNil(t, db)
+
+// 	sebraePostgresStorages := NewSebraePostgresStorage(db, logger)
+// 	assert.NotNil(t, sebraePostgresStorages)
+// 	defer func() {
+// 		err := sebraePostgresStorages.Close()
+// 		assert.NoError(t, err)
+// 	}()
+
+// 	query := "CREATE TABLE IF NOT EXISTS table_teste(id int);"
+// 	rows, err := sebraePostgresStorages.Exec(query)
+// 	assert.NoError(t, err)
+// 	assert.NotNil(t, rows)
+
+// 	rowsAffected, err := rows.RowsAffected()
+// 	assert.NoError(t, err)
+// 	assert.Nil(t, err)
+// 	assert.Zero(t, rowsAffected)
+
+// 	query2 := "DROP TABLE IF EXISTS table_teste;"
+// 	row, eErr := sebraePostgresStorages.Exec(query2)
+// 	assert.NoError(t, eErr)
+// 	assert.NotNil(t, row)
+// }
+
+// func TestSebraePostgres_MustExec_Success(t *testing.T) {
+// 	db, err := cloudsql.NewConnection(postgresURL, logger)
+// 	assert.NoError(t, err)
+// 	assert.NotNil(t, db)
+
+// 	sebraePostgresStorages := NewSebraePostgresStorage(db, logger)
+// 	assert.NotNil(t, sebraePostgresStorages)
+// 	defer func() {
+// 		err := sebraePostgresStorages.Close()
+// 		assert.NoError(t, err)
+// 	}()
+
+// 	query := "CREATE TABLE IF NOT EXISTS table_teste(id int);"
+// 	rows := sebraePostgresStorages.MustExec(query)
+// 	assert.NotNil(t, rows)
+
+// 	rowsAffected, err := rows.RowsAffected()
+// 	assert.NoError(t, err)
+// 	assert.Nil(t, err)
+// 	assert.Zero(t, rowsAffected)
+
+// 	query2 := "DROP TABLE IF EXISTS table_teste;"
+// 	row := sebraePostgresStorages.MustExec(query2)
+// 	assert.NotNil(t, row)
+// }
